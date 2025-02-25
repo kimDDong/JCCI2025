@@ -116,16 +116,20 @@ def print_vnf_assignments(grid):
 # 시뮬레이션 함수
 # =============================================================================
 def simulate(simulation_time, source_density_map, dest_density_map):
+    """
+    simulation_time: 전체 시뮬레이션 시간(ms 단위)
+    """
     grid = create_satellite_grid()
-    print_vnf_assignments(grid)  # 위성 VNF 할당 정보 출력
+    if PRINT and PRINT_VNF:
+        print_vnf_assignments(grid)  # 위성 VNF 할당 정보 출력
     delivered_packets = []
 
     destination_population = [(i, j) for i in range(NUM_OF_ORB) for j in range(NUM_OF_SPO)]
     destination_weights = [dest_density_map[i][j] for i in range(NUM_OF_ORB) for j in range(NUM_OF_SPO)]
 
-    time = 0
+    time = 0  # ms 단위 시작 시간
     while time < simulation_time:
-        # 패킷 생성 시 creation_time 설정 (simulation time 값을 ms 단위로 기록)
+        # 각 tick(1ms)마다 패킷 생성 (생성 시각 = 현재 time)
         for i in range(NUM_OF_ORB):
             for j in range(NUM_OF_SPO):
                 count = source_density_map[i][j]
@@ -137,32 +141,32 @@ def simulate(simulation_time, source_density_map, dest_density_map):
                             break
                     sfc = random.choice(SFC_LIST)
                     packet = Packet(source=(i, j), destination=dest, sfc=sfc)
-                    packet.creation_time = time  # 현재 simulation time(ms) 기록
+                    packet.creation_time = time  # 현재 ms 기록
                     grid[i][j].enqueue_packet(packet, time)
-
         tick_delivered = []
         for row in grid:
             for sat in row:
-                # process_queue에 현재 time을 전달하여 queueing, processing, transmission delay 계산
                 delivered = sat.process_queue(grid, time)
                 tick_delivered.extend(delivered)
                 delivered_packets.extend(delivered)
 
-        print_queue_status(grid, time)
         if tick_delivered:
-            print(f"Tick {time} - Delivered {len(tick_delivered)} packets:")
-            for p in tick_delivered:
-                print(f"  Packet ID: {p.id}, Source: {p.source}, Destination: {p.destination}")
-                print(f"    Routing Path (Hops): {p.hops}")
-                print(f"    Propagation Delay: {p.propagation_delay:.3f} ms, Queueing Delay: {p.queueing_delay:.3f} ms")
-                print(f"    Processing Delay: {p.processing_delay:.3f} ms, Transmission Delay: {p.transmission_delay:.3f} ms")
-                print(f"    Total Delay: {p.total_delay:.3f} ms")
-                print(f"    Created at: {p.creation_time:.3f} ms, Arrived at: {p.arrival_time:.3f} ms")
-        else:
-            print(f"Tick {time} - No packets delivered.")
-
+            if PRINT and PRINT_PACKET:
+                print(f"Tick {time} (Time {time:.3f}ms ~ {time + 1:.3f}ms):")
+                for p in tick_delivered:
+                    if PRINT and PRINT_PATH:
+                        print(f"  Packet ID: {p.id}, Source: {p.source}, Destination: {p.destination}")
+                        print(f"    Routing Path (Hops): {p.hops}")
+                    if PRINT and PRINT_DELAY:
+                        print(f"    Propagation Delay: {p.propagation_delay:.3f} ms, Queueing Delay: {p.queueing_delay:.3f} ms")
+                        print(f"    Processing Delay: {p.processing_delay:.3f} ms, Transmission Delay: {p.transmission_delay:.3f} ms")
+                        print(f"    Total Delay: {p.total_delay:.3f} ms")
+                        print(f"    Created at: {p.creation_time:.3f} ms, Arrived at: {p.arrival_time:.3f} ms")
+                    print("=" * 40)
+            # else:
+            #     print("  No packets delivered.")
         time += 1
-
     print(f"총 전달된 패킷 수: {len(delivered_packets)}")
     return delivered_packets
+
 

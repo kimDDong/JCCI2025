@@ -25,6 +25,9 @@ class Packet:
         self.processing_delay = 0
         self.transmission_delay = 0
         self.last_enqueue_time = 0  # 패킷이 큐에 들어간 시각 (queueing delay 계산용)
+        # 패킷이 다음 위성에서 처리 가능해지는 시각
+        self.available_time = 0
+        self.last_enqueue_time = 0  # 패킷이 큐에 들어간 시각 (queueing delay 계산용)
 
     @property
     def total_delay(self):

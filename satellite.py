@@ -153,8 +153,12 @@ class Satellite:
 
     # 수정: current_time 파라미터를 받아 패킷의 enqueue 시각을 기록
     # enqueue_packet 수정: 현재 시각 기록
-    def enqueue_packet(self, packet, current_time):
-        packet.last_enqueue_time = current_time
+    def enqueue_packet(self, packet, scheduled_time):
+        """
+        scheduled_time: 위성 큐에 넣을 때, 패킷이 도착하는(처리 가능한) 시각(ms)
+        """
+        packet.last_enqueue_time = scheduled_time
+        packet.available_time = scheduled_time
         self.queue.append(packet)
 
     def process_queue(self, grid, current_time):
@@ -162,11 +166,16 @@ class Satellite:
         num_packets = len(self.queue)
         for _ in range(num_packets):
             packet = self.queue.popleft()
-            # (0) 큐잉 delay 계산: 현재 시각 - enqueue 시각
+            # 아직 처리 가능 시각에 도달하지 않았다면, 다시 큐에 넣음
+            if current_time < packet.available_time:
+                self.queue.append(packet)
+                continue
+
+            # (0) 큐잉 delay 계산: 현재 시각 - 마지막 enqueue 시각
             queue_delay = current_time - packet.last_enqueue_time
             packet.queueing_delay += queue_delay
 
-            # (1) VNF 처리: CPU 및 BW 기반 delay 추가
+            # (1) VNF 처리 (CPU 및 BW delay 추가)
             if packet.sfc_index < len(packet.sfc) and self.vnf == packet.sfc[packet.sfc_index]:
                 proc_delay = VNF_CPU_REQUIREMENTS[self.vnf] / SATELLITE_CPU_CAPACITY
                 trans_delay = VNF_BW_REQUIREMENTS[self.vnf] / SATELLITE_BW_CAPACITY
@@ -174,6 +183,8 @@ class Satellite:
                 packet.transmission_delay += trans_delay
                 packet.hops.append(f"{self.sat_id}(processed {self.vnf})")
                 packet.sfc_index += 1
+                # 처리 후, 패킷은 다음 작업까지 (proc + trans) delay 후에 처리 가능
+                packet.available_time = current_time + proc_delay + trans_delay
 
             # (2) 포워딩 기록 추가
             packet.hops.append(self.sat_id)
@@ -186,14 +197,16 @@ class Satellite:
             else:
                 targets = {packet.destination}
 
-            # (4) 현재 위성이 목표인 경우: 목적지면 전달, 아니면 재대기 (enqueue 시각 갱신)
+            # (4) 현재 위성이 목표에 해당하면
             if (self.region_x, self.region_y) in targets:
                 if (self.region_x, self.region_y) == packet.destination:
-                    # 패킷 도착 시, simulation 시작 후 총 경과 시간 기록 (creation_time + 누적 delay)
+                    # 패킷 도착: arrival_time은 현재 시각
                     packet.arrival_time = packet.creation_time + packet.total_delay
                     delivered_packets.append(packet)
                 else:
+                    # 도착하지 않은 경우, 재대기: enqueue 시각 갱신
                     packet.last_enqueue_time = current_time
+                    packet.available_time = current_time
                     self.queue.append(packet)
                 continue
 
@@ -206,9 +219,13 @@ class Satellite:
                 if np.isnan(link_delay):
                     link_delay = float('inf')
                 packet.propagation_delay += link_delay
-                next_sat.enqueue_packet(packet, current_time)
+                # 패킷은 다음 위성에 current_time + link_delay 시각에 도착하도록 스케줄
+                next_delivery_time = current_time + link_delay
+                next_sat.enqueue_packet(packet, next_delivery_time)
             else:
+                # 다음 홉을 찾지 못하면, 현재 위성 큐에 즉시 재대기
                 packet.last_enqueue_time = current_time
+                packet.available_time = current_time
                 self.queue.append(packet)
         return delivered_packets
 
