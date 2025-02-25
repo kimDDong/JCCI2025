@@ -32,7 +32,7 @@ VNF_LIST = ["FW", "IDS", "NAT", "LB"]
 SFC_LIST = [
     ["FW", "IDS", "NAT"], # 보안 중심 SFC
     ["LB", "NAT", "FW"]   # 부하 분산 중심 SFC
-            ]
+]
 
 VNF_installation_time = 10       # ms
 

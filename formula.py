@@ -134,7 +134,8 @@ def simulate(simulation_time, source_density_map, dest_density_map):
                         dest = random.choices(destination_population, weights=destination_weights, k=1)[0]
                         if dest != (i, j):
                             break
-                    packet = Packet(source=(i, j), destination=dest)
+                    sfc = random.choice(SFC_LIST)
+                    packet = Packet(source=(i, j), destination=dest, sfc=sfc)
                     grid[i][j].enqueue_packet(packet)
 
         tick_delivered = []

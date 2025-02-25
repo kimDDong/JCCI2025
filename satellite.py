@@ -14,6 +14,54 @@ def get_lat_lon(sat):
     return lat_centers[sat.region_x], lon_centers[sat.region_y]
 
 
+# [추가: 다중 목적지 Dijkstra 함수]
+def dijkstra_path_to_targets(grid, start, targets):
+    rows, cols = len(grid), len(grid[0])
+    dist = { (i, j): float('inf') for i in range(rows) for j in range(cols) }
+    prev = { (i, j): None for i in range(rows) for j in range(cols) }
+    dist[start] = 0
+    pq = [(0, start)]
+    reached = None
+    while pq:
+        d, node = heapq.heappop(pq)
+        if node in targets:
+            reached = node
+            break
+        if d > dist[node]:
+            continue
+        x, y = node
+        neighbors = []
+        if x > 0: neighbors.append((x-1, y))
+        if x < rows - 1: neighbors.append((x+1, y))
+        if y > 0: neighbors.append((x, y-1))
+        if y < cols - 1: neighbors.append((x, y+1))
+        for n in neighbors:
+            sat_current = grid[x][y]
+            sat_neighbor = grid[n[0]][n[1]]
+            delay = formula.calculate_propagation_delay(sat_current, sat_neighbor)
+            weight = delay if not np.isnan(delay) else float('inf')
+            if d + weight < dist[n]:
+                dist[n] = d + weight
+                prev[n] = node
+                heapq.heappush(pq, (dist[n], n))
+    if reached is None:
+        return []
+    path = []
+    node = reached
+    while node is not None:
+        path.append(node)
+        node = prev[node]
+    path.reverse()
+    return path
+
+def dijkstra_next_hop_extended(grid, current, targets):
+    path = dijkstra_path_to_targets(grid, current, targets)
+    return path[1] if len(path) >= 2 else None
+
+
+
+
+
 # =============================================================================
 # Dijkstra 알고리즘 기반 경로 탐색 함수
 # =============================================================================
@@ -111,22 +159,44 @@ class Satellite:
         num_packets = len(self.queue)
         for _ in range(num_packets):
             packet = self.queue.popleft()
+
+            # 1. 만약 현재 위성이 다음 요구 VNF를 가지고 있다면, 처리
+            if packet.sfc_index < len(packet.sfc) and self.vnf == packet.sfc[packet.sfc_index]:
+                packet.hops.append(f"{self.sat_id}(processed {self.vnf})")
+                packet.sfc_index += 1
+                # (원한다면 여기서 처리 지연을 추가할 수 있음)
+
+            # 2. 포워딩을 위한 현재 위성 ID 기록 (처리 기록과 별도로)
             packet.hops.append(self.sat_id)
 
-            if (self.region_x, self.region_y) == packet.destination:
-                delivered_packets.append(packet)
+            # 3. 다음 목적지 결정: SFC 미완료이면 다음 VNF를, 완료 시 최종 목적지로
+            if packet.sfc_index < len(packet.sfc):
+                target_vnf = packet.sfc[packet.sfc_index]
+                targets = {(i, j) for i in range(NUM_OF_ORB) for j in range(NUM_OF_SPO)
+                           if grid[i][j].vnf == target_vnf}
             else:
-                current_coord = (self.region_x, self.region_y)
-                next_coord = dijkstra_next_hop(grid, current_coord, packet.destination)
-                if next_coord is not None:
-                    next_sat = grid[next_coord[0]][next_coord[1]]
-                    link_delay = formula.calculate_propagation_delay(self, next_sat)
-                    if np.isnan(link_delay):
-                        link_delay = float('inf')
-                    packet.travel_time += link_delay
-                    next_sat.enqueue_packet(packet)
+                targets = {packet.destination}
+
+            # 4. 만약 현재 위성이 이미 목표에 해당하면, (예: SFC 단계라면 처리 후 대기)
+            if (self.region_x, self.region_y) in targets:
+                if (self.region_x, self.region_y) == packet.destination:
+                    delivered_packets.append(packet)
                 else:
                     self.queue.append(packet)
+                continue
+
+            # 5. Dijkstra 기반 다음 홉 결정
+            current_coord = (self.region_x, self.region_y)
+            next_coord = dijkstra_next_hop_extended(grid, current_coord, targets)
+            if next_coord is not None:
+                next_sat = grid[next_coord[0]][next_coord[1]]
+                link_delay = formula.calculate_propagation_delay(self, next_sat)
+                if np.isnan(link_delay):
+                    link_delay = float('inf')
+                packet.travel_time += link_delay
+                next_sat.enqueue_packet(packet)
+            else:
+                self.queue.append(packet)
         return delivered_packets
 
     def __repr__(self):
