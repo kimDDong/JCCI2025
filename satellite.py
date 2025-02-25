@@ -18,11 +18,6 @@ def get_lat_lon(sat):
 # Dijkstra 알고리즘 기반 경로 탐색 함수
 # =============================================================================
 def dijkstra_path(grid, start, destination):
-    """
-    grid: 2차원 위성 배열
-    start, destination: (x, y) 좌표
-    각 인접 위성 간의 비용은 calculate_propagation_delay()로 구함.
-    """
     rows, cols = len(grid), len(grid[0])
     dist = {(i, j): float('inf') for i in range(rows) for j in range(cols)}
     prev = {(i, j): None for i in range(rows) for j in range(cols)}
@@ -51,7 +46,6 @@ def dijkstra_path(grid, start, destination):
             sat_current = grid[x][y]
             sat_neighbor = grid[n[0]][n[1]]
             delay = formula.calculate_propagation_delay(sat_current, sat_neighbor)
-            # 만약 link가 지구에 의해 가려져 np.nan이 나오면 매우 큰 비용으로 취급
             if np.isnan(delay):
                 weight = float('inf')
             else:
@@ -72,13 +66,8 @@ def dijkstra_path(grid, start, destination):
     path.reverse()
     return path
 
+
 def dijkstra_next_hop(grid, current, destination):
-    """
-    grid: 2차원 위성 배열
-    current: (x, y) 현재 위성 좌표
-    destination: (x, y) 패킷의 최종 목적지 좌표
-    Dijkstra 알고리즘을 통해 얻은 최단 경로에서 바로 다음 위성 좌표 반환.
-    """
     path = dijkstra_path(grid, current, destination)
     if len(path) < 2:
         return None
@@ -96,7 +85,7 @@ class Satellite:
         :param region_x: 위성의 위도 구역 인덱스 (0 ~ 7)
         :param region_y: 위성의 경도 구역 인덱스 (0 ~ 15)
         :param sat_id: 위성의 식별자 (지정하지 않으면 자동 생성됨)
-        :param vnf: 할당된 VNF (예: ['FW'])
+        :param vnf: 할당된 VNF (예: 'FW', 'LB', 'IDS', 'NAT')
         """
         self.region_x = region_x
         self.region_y = region_y
@@ -115,45 +104,28 @@ class Satellite:
         self.vnf_status[vnf_name] = status
 
     def enqueue_packet(self, packet):
-        """패킷을 대기열에 추가"""
         self.queue.append(packet)
 
     def process_queue(self, grid):
-        """
-        위성의 대기열에 있는 패킷을 처리합니다.
-          - 패킷이 최종 목적지에 도달하면 전달 완료.
-          - 아니라면 Dijkstra 알고리즘으로 결정한 인접 위성으로 전달.
-
-        현재 위성에서 다음 홉으로 이동 시, 해당 링크의 propagation delay를
-        계산하여 packet.travel_time에 누적합니다.
-        또한 현재 위성의 ID를 packet.hops에 추가합니다.
-
-        :param grid: 전체 위성 그리드 (2차원 리스트)
-        :return: 현재 위성이 최종 목적지에 도달시킨 패킷 리스트
-        """
         delivered_packets = []
         num_packets = len(self.queue)
         for _ in range(num_packets):
             packet = self.queue.popleft()
-            # 현재 위성을 거친 것으로 기록
             packet.hops.append(self.sat_id)
 
             if (self.region_x, self.region_y) == packet.destination:
                 delivered_packets.append(packet)
             else:
-                # Dijkstra 기반으로 다음 홉 결정
                 current_coord = (self.region_x, self.region_y)
                 next_coord = dijkstra_next_hop(grid, current_coord, packet.destination)
                 if next_coord is not None:
                     next_sat = grid[next_coord[0]][next_coord[1]]
-                    # 현재 위성에서 다음 위성까지의 propagation delay 계산
                     link_delay = formula.calculate_propagation_delay(self, next_sat)
                     if np.isnan(link_delay):
                         link_delay = float('inf')
                     packet.travel_time += link_delay
                     next_sat.enqueue_packet(packet)
                 else:
-                    # 다음 홉 결정 실패 시 (경로 없음), 다시 대기열에 넣음
                     self.queue.append(packet)
         return delivered_packets
 

@@ -1,5 +1,7 @@
 # PRINT FORMAT
-PRINT_QUEUE = 1
+PRINT_QUEUE = 0
+PRINT_PACKET = 0
+PRINT_VNF = 0
 
 # Simulation Parameter
 SIMULATION_TIME = 1 # [min]
