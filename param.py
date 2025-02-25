@@ -34,8 +34,29 @@ SFC_LIST = [
     ["LB", "NAT", "FW"]   # 부하 분산 중심 SFC
 ]
 
+# CPU 및 Bandwidth 파라미터
+VNF_CPU_REQUIREMENTS = {
+    "FW": 10,    # 예: 10 ms CPU 요구량
+    "IDS": 20,
+    "NAT": 15,
+    "LB": 5
+}
+SATELLITE_CPU_CAPACITY = 100  # 예: 100 단위
+
+VNF_BW_REQUIREMENTS = {
+    "FW": 2,     # 예: 2 단위 BW 요구량
+    "IDS": 3,
+    "NAT": 2.5,
+    "LB": 1
+}
+SATELLITE_BW_CAPACITY = 10    # 예: 10 단위
+
+
+
 VNF_installation_time = 10       # ms
 
+
+# 패킷생성률 = 아래 수 다 더한 값 Packets/ms 단위.   타임슬롯 크기 = 1ms
 DENSITY_MAP = [
     [9,1,1,1,1,1,1,1,14,14,8,8,6,6,5,3],
     [8,14,32,44,48,26,1,44,82,38,30,26,41,48,29,6],

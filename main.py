@@ -8,5 +8,5 @@ if __name__ == '__main__':
     dest_map = copy.deepcopy(DENSITY_MAP)
 
     # 예를 들어 50초 동안 시뮬레이션 실행
-    delivered = simulate(simulation_time= 1*SIMULATION_TIME, source_density_map=source_map,
+    delivered = simulate(simulation_time= 5*SIMULATION_TIME, source_density_map=source_map,
                          dest_density_map=dest_map)

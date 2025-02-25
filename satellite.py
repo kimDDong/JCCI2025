@@ -151,25 +151,34 @@ class Satellite:
     def update_vnf_status(self, vnf_name, status):
         self.vnf_status[vnf_name] = status
 
-    def enqueue_packet(self, packet):
+    # 수정: current_time 파라미터를 받아 패킷의 enqueue 시각을 기록
+    # enqueue_packet 수정: 현재 시각 기록
+    def enqueue_packet(self, packet, current_time):
+        packet.last_enqueue_time = current_time
         self.queue.append(packet)
 
-    def process_queue(self, grid):
+    def process_queue(self, grid, current_time):
         delivered_packets = []
         num_packets = len(self.queue)
         for _ in range(num_packets):
             packet = self.queue.popleft()
+            # (0) 큐잉 delay 계산: 현재 시각 - enqueue 시각
+            queue_delay = current_time - packet.last_enqueue_time
+            packet.queueing_delay += queue_delay
 
-            # 1. 만약 현재 위성이 다음 요구 VNF를 가지고 있다면, 처리
+            # (1) VNF 처리: CPU 및 BW 기반 delay 추가
             if packet.sfc_index < len(packet.sfc) and self.vnf == packet.sfc[packet.sfc_index]:
+                proc_delay = VNF_CPU_REQUIREMENTS[self.vnf] / SATELLITE_CPU_CAPACITY
+                trans_delay = VNF_BW_REQUIREMENTS[self.vnf] / SATELLITE_BW_CAPACITY
+                packet.processing_delay += proc_delay
+                packet.transmission_delay += trans_delay
                 packet.hops.append(f"{self.sat_id}(processed {self.vnf})")
                 packet.sfc_index += 1
-                # (원한다면 여기서 처리 지연을 추가할 수 있음)
 
-            # 2. 포워딩을 위한 현재 위성 ID 기록 (처리 기록과 별도로)
+            # (2) 포워딩 기록 추가
             packet.hops.append(self.sat_id)
 
-            # 3. 다음 목적지 결정: SFC 미완료이면 다음 VNF를, 완료 시 최종 목적지로
+            # (3) 다음 목적지 결정: SFC 미완료이면 다음 VNF를, 완료 시 최종 목적지로
             if packet.sfc_index < len(packet.sfc):
                 target_vnf = packet.sfc[packet.sfc_index]
                 targets = {(i, j) for i in range(NUM_OF_ORB) for j in range(NUM_OF_SPO)
@@ -177,15 +186,18 @@ class Satellite:
             else:
                 targets = {packet.destination}
 
-            # 4. 만약 현재 위성이 이미 목표에 해당하면, (예: SFC 단계라면 처리 후 대기)
+            # (4) 현재 위성이 목표인 경우: 목적지면 전달, 아니면 재대기 (enqueue 시각 갱신)
             if (self.region_x, self.region_y) in targets:
                 if (self.region_x, self.region_y) == packet.destination:
+                    # 패킷 도착 시, simulation 시작 후 총 경과 시간 기록 (creation_time + 누적 delay)
+                    packet.arrival_time = packet.creation_time + packet.total_delay
                     delivered_packets.append(packet)
                 else:
+                    packet.last_enqueue_time = current_time
                     self.queue.append(packet)
                 continue
 
-            # 5. Dijkstra 기반 다음 홉 결정
+            # (5) Dijkstra 기반 다음 홉 결정 및 Propagation delay 추가
             current_coord = (self.region_x, self.region_y)
             next_coord = dijkstra_next_hop_extended(grid, current_coord, targets)
             if next_coord is not None:
@@ -193,9 +205,10 @@ class Satellite:
                 link_delay = formula.calculate_propagation_delay(self, next_sat)
                 if np.isnan(link_delay):
                     link_delay = float('inf')
-                packet.travel_time += link_delay
-                next_sat.enqueue_packet(packet)
+                packet.propagation_delay += link_delay
+                next_sat.enqueue_packet(packet, current_time)
             else:
+                packet.last_enqueue_time = current_time
                 self.queue.append(packet)
         return delivered_packets
 
