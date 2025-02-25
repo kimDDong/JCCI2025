@@ -1,3 +1,4 @@
+#param.py
 # PRINT FORMAT
 PRINT_VNF = 1
 PRINT_PATH = 1
@@ -6,7 +7,7 @@ PRINT_PACKET = 1
 PRINT = 0
 
 # Simulation Parameter
-SIMULATION_TIME = 1 # [min]
+SIMULATION_TIME = 60 #*1000 # [ms]
 
 # Network Parameter
 EARTH_RADIUS = 6371          # [km]
@@ -55,7 +56,7 @@ SATELLITE_BW_CAPACITY = 10    # 예: 10 단위
 
 
 
-VNF_installation_time = 10       # ms
+VNF_INSTALLATION_TIME = 10       # ms
 
 
 # 패킷생성률 = 아래 수 다 더한 값 Packets/ms 단위.   타임슬롯 크기 = 1ms

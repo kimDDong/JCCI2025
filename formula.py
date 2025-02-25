@@ -1,8 +1,12 @@
+#formula.py
+import csv
+import os
 from param import *
 from packet import *
 import numpy as np
 import random
 from satellite import *
+from tqdm import tqdm
 
 # 구역을 8x16으로 나누었을 때의 위도, 경도 변환 함수
 def get_lat_lon(sat):
@@ -50,25 +54,6 @@ def calculate_propagation_delay(sat1, sat2): # [ms]
 
     return propagation_delay
 
-# # 각 VNF를 32개 위성에 랜덤 배치
-# def assign_vnfs(rows, cols, vnf_list, vnf_count):
-#     vnf_positions = {vnf: set() for vnf in vnf_list}
-#
-#     all_positions = [(r, c) for r in range(rows) for c in range(cols)]
-#     random.shuffle(all_positions)
-#
-#     for vnf, count in zip(vnf_list, [vnf_count] * len(vnf_list)):
-#         vnf_positions[vnf] = set(all_positions[:count])
-#         all_positions = all_positions[count:]
-#
-#     matrix = [[[] for _ in range(cols)] for _ in range(rows)]
-#
-#     for vnf, positions in vnf_positions.items():
-#         for r, c in positions:
-#             matrix[r][c].append(vnf)
-#
-#     return matrix
-
 # =============================================================================
 # 위성 그리드 생성 함수 (VNF 할당 포함)
 # =============================================================================
@@ -112,7 +97,38 @@ def print_vnf_assignments(grid):
         print()
     print("-" * 40)
 
-# =============================================================================
+
+def log_packets_to_csv(tick_delivered, time, file_path="packets_log.csv"):
+    # CSV 파일 헤더 정의
+    headers = [
+        "Tick", "Time_Start(ms)", "Time_End(ms)", "Packet_ID", "Source", "Destination",
+        "Routing_Path(Hops)", "Propagation_Delay(ms)", "Queueing_Delay(ms)",
+        "Processing_Delay(ms)", "Transmission_Delay(ms)", "Total_Delay(ms)",
+        "Creation_Time(ms)", "Arrival_Time(ms)"
+    ]
+
+    # 파일 존재 여부 확인 후 헤더 작성
+    write_header = not os.path.exists(file_path)
+
+    with open(file_path, mode="a", newline="") as file:
+        writer = csv.writer(file)
+
+        if write_header:
+            writer.writerow(headers)
+
+        # 각 패킷의 정보를 CSV에 기록
+        for p in tick_delivered:
+            writer.writerow([
+                time, f"{time:.3f}", f"{time + 1:.3f}", p.id, p.source, p.destination,
+                " -> ".join(map(str, p.hops)), f"{p.propagation_delay:.3f}", f"{p.queueing_delay:.3f}",
+                f"{p.processing_delay:.3f}", f"{p.transmission_delay:.3f}", f"{p.total_delay:.3f}",
+                f"{p.creation_time:.3f}", f"{p.arrival_time:.3f}"
+            ])
+
+
+
+
+# ==================================
 # 시뮬레이션 함수
 # =============================================================================
 def simulate(simulation_time, source_density_map, dest_density_map):
@@ -128,7 +144,8 @@ def simulate(simulation_time, source_density_map, dest_density_map):
     destination_weights = [dest_density_map[i][j] for i in range(NUM_OF_ORB) for j in range(NUM_OF_SPO)]
 
     time = 0  # ms 단위 시작 시간
-    while time < simulation_time:
+    for _ in tqdm(range(simulation_time)):
+    # while time < simulation_time:
         # 각 tick(1ms)마다 패킷 생성 (생성 시각 = 현재 time)
         for i in range(NUM_OF_ORB):
             for j in range(NUM_OF_SPO):
@@ -150,21 +167,27 @@ def simulate(simulation_time, source_density_map, dest_density_map):
                 tick_delivered.extend(delivered)
                 delivered_packets.extend(delivered)
 
+        # 사용 예시 (기존 코드에 적용)
         if tick_delivered:
-            if PRINT and PRINT_PACKET:
-                print(f"Tick {time} (Time {time:.3f}ms ~ {time + 1:.3f}ms):")
-                for p in tick_delivered:
-                    if PRINT and PRINT_PATH:
-                        print(f"  Packet ID: {p.id}, Source: {p.source}, Destination: {p.destination}")
-                        print(f"    Routing Path (Hops): {p.hops}")
-                    if PRINT and PRINT_DELAY:
-                        print(f"    Propagation Delay: {p.propagation_delay:.3f} ms, Queueing Delay: {p.queueing_delay:.3f} ms")
-                        print(f"    Processing Delay: {p.processing_delay:.3f} ms, Transmission Delay: {p.transmission_delay:.3f} ms")
-                        print(f"    Total Delay: {p.total_delay:.3f} ms")
-                        print(f"    Created at: {p.creation_time:.3f} ms, Arrived at: {p.arrival_time:.3f} ms")
-                    print("=" * 40)
-            # else:
-            #     print("  No packets delivered.")
+            log_packets_to_csv(tick_delivered, time)
+
+        # if tick_delivered:
+        #     if PRINT and PRINT_PACKET:
+        #         print(f"Tick {time} (Time {time:.3f}ms ~ {time + 1:.3f}ms):")
+        #         for p in tick_delivered:
+        #             if PRINT and PRINT_PATH:
+        #                 print(f"  Packet ID: {p.id}, Source: {p.source}, Destination: {p.destination}")
+        #                 print(f"    Routing Path (Hops): {p.hops}")
+        #             if PRINT and PRINT_DELAY:
+        #                 print(f"    Propagation Delay: {p.propagation_delay:.3f} ms, Queueing Delay: {p.queueing_delay:.3f} ms")
+        #                 print(f"    Processing Delay: {p.processing_delay:.3f} ms, Transmission Delay: {p.transmission_delay:.3f} ms")
+        #                 print(f"    Total Delay: {p.total_delay:.3f} ms")
+        #                 print(f"    Created at: {p.creation_time:.3f} ms, Arrived at: {p.arrival_time:.3f} ms")
+        #             print("=" * 40)
+        #     # else:
+        #     #     print("  No packets delivered.")
+
+
         time += 1
     print(f"총 전달된 패킷 수: {len(delivered_packets)}")
     return delivered_packets
