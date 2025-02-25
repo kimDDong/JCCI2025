@@ -168,24 +168,24 @@ def simulate(simulation_time, source_density_map, dest_density_map):
                 delivered_packets.extend(delivered)
 
         # 사용 예시 (기존 코드에 적용)
-        if tick_delivered:
-            log_packets_to_csv(tick_delivered, time)
-
         # if tick_delivered:
-        #     if PRINT and PRINT_PACKET:
-        #         print(f"Tick {time} (Time {time:.3f}ms ~ {time + 1:.3f}ms):")
-        #         for p in tick_delivered:
-        #             if PRINT and PRINT_PATH:
-        #                 print(f"  Packet ID: {p.id}, Source: {p.source}, Destination: {p.destination}")
-        #                 print(f"    Routing Path (Hops): {p.hops}")
-        #             if PRINT and PRINT_DELAY:
-        #                 print(f"    Propagation Delay: {p.propagation_delay:.3f} ms, Queueing Delay: {p.queueing_delay:.3f} ms")
-        #                 print(f"    Processing Delay: {p.processing_delay:.3f} ms, Transmission Delay: {p.transmission_delay:.3f} ms")
-        #                 print(f"    Total Delay: {p.total_delay:.3f} ms")
-        #                 print(f"    Created at: {p.creation_time:.3f} ms, Arrived at: {p.arrival_time:.3f} ms")
-        #             print("=" * 40)
-        #     # else:
-        #     #     print("  No packets delivered.")
+        #     log_packets_to_csv(tick_delivered, time)
+
+        if tick_delivered:
+            if PRINT and PRINT_PACKET:
+                print(f"Tick {time} (Time {time:.3f}ms ~ {time + 1:.3f}ms):")
+                for p in tick_delivered:
+                    if PRINT and PRINT_PATH:
+                        print(f"  Packet ID: {p.id}, Source: {p.source}, Destination: {p.destination}")
+                        print(f"    Routing Path (Hops): {p.hops}")
+                    if PRINT and PRINT_DELAY:
+                        print(f"    Propagation Delay: {p.propagation_delay:.3f} ms, Queueing Delay: {p.queueing_delay:.3f} ms")
+                        print(f"    Processing Delay: {p.processing_delay:.3f} ms, Transmission Delay: {p.transmission_delay:.3f} ms")
+                        print(f"    Total Delay: {p.total_delay:.3f} ms")
+                        print(f"    Created at: {p.creation_time:.3f} ms, Arrived at: {p.arrival_time:.3f} ms")
+                    print("=" * 40)
+            # else:
+            #     print("  No packets delivered.")
 
 
         time += 1
