@@ -15,7 +15,7 @@ SIMULATION_TIME = 60  # [ms]
 SIMULATION_MODE = 2  # 사용자가 1 또는 2로 설정
 
 # VNF 설치 시간 실험: 각 값(ms)마다 실험 진행
-VNF_INSTALLATION_TIMES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+VNF_INSTALLATION_TIMES = [1, 2, 3, 4, 5]
 CURRENT_VNF_INSTALLATION_TIME = VNF_INSTALLATION_TIMES[0]  # 시뮬레이션 실행 시 main.py에서 업데이트됨
 
 # Network Parameter
@@ -28,31 +28,46 @@ NUM_OF_ORB = 8
 NUM_OF_SPO = 16
 NUM_OF_SAT = NUM_OF_ORB * NUM_OF_SPO
 
-# VNF 및 SFC 관련 파라미터
-VNF_LIST = ["FW", "IDS", "NAT", "LB"]
+
+# VNF 목록 (총 8개)
+VNF_LIST = ["FW", "IDS", "NAT", "LB", "VPN", "WAF", "DPI", "Proxy"]
+
+
+# SFC 목록
 SFC_LIST = [
-    ["FW", "IDS", "NAT"],  # 보안 중심 SFC
-    ["LB", "NAT", "FW"]    # 부하 분산 중심 SFC
+    ["FW", "IDS", "NAT"],           # 보안 중심 SFC (3 VNFs)
+    ["LB", "NAT", "FW"],            # 부하 분산 중심 SFC (3 VNFs)
+    ["LB", "VPN", "Proxy", "DPI"],   # 트래픽 관리 SFC (4 VNFs)
+    ["FW", "IDS", "NAT", "WAF", "VPN"]  # 확장 보안 SFC (5 VNFs)
 ]
 
-# CPU 및 Bandwidth 파라미터
+# CPU 요구량 (예: ms 단위)
 VNF_CPU_REQUIREMENTS = {
-    "FW": 10,    # 예: 10 ms CPU 요구량
+    "FW": 10,
     "IDS": 20,
     "NAT": 15,
-    "LB": 5
+    "LB": 5,
+    "VPN": 8,
+    "WAF": 12,
+    "DPI": 18,
+    "Proxy": 7
 }
 SATELLITE_CPU_CAPACITY = 100
 
+# Bandwidth 요구량 (예: Mbps 단위)
 VNF_BW_REQUIREMENTS = {
     "FW": 2,
     "IDS": 3,
     "NAT": 2.5,
-    "LB": 1
+    "LB": 1,
+    "VPN": 2,
+    "WAF": 1.5,
+    "DPI": 2.5,
+    "Proxy": 1
 }
 SATELLITE_BW_CAPACITY = 10
 
-# (기타 기존 파라미터 그대로 유지)
+
 
 # 패킷 생성률 등
 DENSITY_MAP = [

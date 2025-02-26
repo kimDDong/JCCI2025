@@ -75,7 +75,7 @@ def plot_cdfs_for_column(csv_files, column, save_path=None):
 
 def main():
     # CSV 파일 경로: ./csv/ 폴더 내 packets_log_mode로 시작하는 모든 CSV 파일
-    csv_files = glob.glob("./csv/packets_log_mode*.csv")
+    csv_files = glob.glob("./csv/packets_log_mode*modified.csv")
     if not csv_files:
         print("CSV 파일을 찾을 수 없습니다.")
         return
