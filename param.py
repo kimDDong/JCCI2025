@@ -30,6 +30,14 @@ NUM_OF_SAT = NUM_OF_ORB * NUM_OF_SPO
 
 
 # VNF 목록 (총 8개)
+    # FW: Firewall (방화벽)
+    # IDS: Intrusion Detection System (침입 탐지 시스템)
+    # NAT: Network Address Translation (네트워크 주소 변환)
+    # LB: Load Balancer (부하 분산기)
+    # VPN: Virtual Private Network (가상 사설망)
+    # WAF: Web Application Firewall (웹 애플리케이션 방화벽)
+    # DPI: Deep Packet Inspection (패킷 심층 검사)
+    # Proxy: Proxy Server (프록시 서버)
 VNF_LIST = ["FW", "IDS", "NAT", "LB", "VPN", "WAF", "DPI", "Proxy"]
 
 
