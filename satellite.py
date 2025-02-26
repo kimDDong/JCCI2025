@@ -6,7 +6,7 @@ from param import *
 from packet import *
 import heapq
 import formula
-
+import param
 def get_lat_lon(sat):
     lat_divs = np.linspace(-90, 90, NUM_OF_ORB + 1)  # 8개 구간, 9개 경계점
     lon_divs = np.linspace(-180, 180, NUM_OF_SPO + 1)  # 16개 구간, 17개 경계점
@@ -137,7 +137,9 @@ class Satellite:
         self.status = "active"
         self.vnf_status = {}
         self.queue = deque()
-
+        # 위성 처리 통계를 위한 변수 추가
+        self.processed_count = 0         # 해당 위성에서 처리(설치/처리)한 횟수
+        self.total_processing_delay = 0  # 해당 위성에서 처리 시 소요된 지연(installation+processing)
     def enqueue_packet(self, packet, scheduled_time):
         packet.last_enqueue_time = scheduled_time
         packet.available_time = scheduled_time
@@ -148,7 +150,6 @@ class Satellite:
         num_packets = len(self.queue)
         for _ in range(num_packets):
             packet = self.queue.popleft()
-            # 아직 처리 가능 시각이 아니면 다시 대기열에 넣음
             if current_time < packet.available_time:
                 self.queue.append(packet)
                 continue
@@ -158,7 +159,7 @@ class Satellite:
             packet.queueing_delay += queue_delay
 
             if SIMULATION_MODE == 1:
-                # [모드 1] 기존 알고리즘: 위성이 미리 할당받은 VNF 사용
+                # [모드 1] 기존 알고리즘: 할당된 VNF 사용
                 if packet.sfc_index < len(packet.sfc) and self.vnf == packet.sfc[packet.sfc_index]:
                     proc_delay = VNF_CPU_REQUIREMENTS[self.vnf] / SATELLITE_CPU_CAPACITY
                     trans_delay = VNF_BW_REQUIREMENTS[self.vnf] / SATELLITE_BW_CAPACITY
@@ -168,6 +169,9 @@ class Satellite:
                     packet.sfc_index += 1
                     packet.available_time = current_time + proc_delay + trans_delay
 
+                    # 위성 통계 업데이트
+                    self.processed_count += 1
+                    self.total_processing_delay += proc_delay
                 packet.hops.append(self.sat_id)
 
                 if packet.sfc_index < len(packet.sfc):
@@ -204,35 +208,31 @@ class Satellite:
                 # [모드 2] on-the-fly VNF 설치 알고리즘
                 if packet.sfc_index < len(packet.sfc):
                     required_vnf = packet.sfc[packet.sfc_index]
-                    # VNF 설치 지연 (실험 변수)
-                    installation_delay = CURRENT_VNF_INSTALLATION_TIME
+                    installation_delay = param.CURRENT_VNF_INSTALLATION_TIME
                     proc_delay = VNF_CPU_REQUIREMENTS[required_vnf] / SATELLITE_CPU_CAPACITY
                     trans_delay = VNF_BW_REQUIREMENTS[required_vnf] / SATELLITE_BW_CAPACITY
                     total_proc = installation_delay + proc_delay + trans_delay
 
-                    # 처리 지연에 설치 지연 포함
                     packet.processing_delay += installation_delay + proc_delay
                     packet.transmission_delay += trans_delay
 
                     packet.hops.append(f"{self.sat_id}(installed {required_vnf})")
                     packet.sfc_index += 1
+                    # 위성 통계 업데이트 (설치+처리)
+                    self.processed_count += 1
+                    self.total_processing_delay += (installation_delay + proc_delay)
 
-                    # 설치 및 처리 후, 패킷은 total_proc 만큼의 시간이 지난 후에 처리 가능
+                    # 설치 및 처리 후, 재대기
                     packet.available_time = current_time + total_proc
-
-                    # **즉시 추가 처리를 하지 않고 재대기**:
                     packet.last_enqueue_time = current_time
                     self.queue.append(packet)
-                    continue  # 이번 tick에서는 여기서 멈추고 다음 tick에서 다시 처리
+                    continue
 
-                # 이후의 처리 (VNF 설치가 완료된 패킷에 대해)
                 packet.hops.append(self.sat_id)
 
-                # 목적지 도달 확인
                 if (self.region_x, self.region_y) == packet.destination:
-                    # SFC 처리 완료 시 패킷 도착
                     if packet.sfc_index == len(packet.sfc):
-                        # 모드 1과 동일하게, arrival_time을 creation_time + total_delay로 계산
+                        # 모드 2에서도 arrival_time을 creation_time+total_delay로 계산
                         packet.arrival_time = packet.creation_time + packet.total_delay
                         delivered_packets.append(packet)
                     else:
@@ -241,7 +241,6 @@ class Satellite:
                         self.queue.append(packet)
                     continue
 
-                # 라우팅: 단순히 최종 목적지로 진행
                 current_coord = (self.region_x, self.region_y)
                 next_coord = formula.dijkstra_next_hop(grid, current_coord, packet.destination)
                 if next_coord is not None:

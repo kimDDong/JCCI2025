@@ -7,6 +7,7 @@ import numpy as np
 import random
 from satellite import *
 from tqdm import tqdm
+import time
 
 # 구역을 8x16으로 나누었을 때의 위도, 경도 변환 함수
 def get_lat_lon(sat):
@@ -97,26 +98,18 @@ def print_vnf_assignments(grid):
         print()
     print("-" * 40)
 
-
 def log_packets_to_csv(tick_delivered, time, file_path="packets_log.csv"):
-    # CSV 파일 헤더 정의
     headers = [
         "Tick", "Time_Start(ms)", "Time_End(ms)", "Packet_ID", "Source", "Destination",
         "Routing_Path(Hops)", "Propagation_Delay(ms)", "Queueing_Delay(ms)",
         "Processing_Delay(ms)", "Transmission_Delay(ms)", "Total_Delay(ms)",
         "Creation_Time(ms)", "Arrival_Time(ms)"
     ]
-
-    # 파일 존재 여부 확인 후 헤더 작성
     write_header = not os.path.exists(file_path)
-
     with open(file_path, mode="a", newline="") as file:
         writer = csv.writer(file)
-
         if write_header:
             writer.writerow(headers)
-
-        # 각 패킷의 정보를 CSV에 기록
         for p in tick_delivered:
             writer.writerow([
                 time, f"{time:.3f}", f"{time + 1:.3f}", p.id, p.source, p.destination,
@@ -125,19 +118,43 @@ def log_packets_to_csv(tick_delivered, time, file_path="packets_log.csv"):
                 f"{p.creation_time:.3f}", f"{p.arrival_time:.3f}"
             ])
 
+def log_satellites_to_csv(grid, file_path="satellites_log.csv"):
+    """
+    각 위성의 통계 정보를 CSV 파일로 기록합니다.
+    """
+    headers = [
+        "Satellite_ID", "Region", "Latitude", "Longitude",
+        "Processed_Count", "Total_Processing_Delay", "Avg_Processing_Delay", "Final_Queue_Length"
+    ]
+    with open(file_path, mode="w", newline="") as file:
+        writer = csv.writer(file)
+        writer.writerow(headers)
+        for row in grid:
+            for sat in row:
+                avg_delay = sat.total_processing_delay / sat.processed_count if sat.processed_count > 0 else 0
+                writer.writerow([
+                    sat.sat_id,
+                    f"({sat.region_x}, {sat.region_y})",
+                    f"{sat.lat:.2f}",
+                    f"{sat.lon:.2f}",
+                    sat.processed_count,
+                    f"{sat.total_processing_delay:.3f}",
+                    f"{avg_delay:.3f}",
+                    len(sat.queue)
+                ])
 
 
 
 # ==================================
 # 시뮬레이션 함수
 # =============================================================================
-def simulate(simulation_time, source_density_map, dest_density_map):
+def simulate(simulation_time, source_density_map, dest_density_map, start_time, install_time):
     """
     simulation_time: 전체 시뮬레이션 시간(ms 단위)
     """
     grid = create_satellite_grid()
     if PRINT and PRINT_VNF:
-        print_vnf_assignments(grid)  # 위성 VNF 할당 정보 출력
+        print_vnf_assignments(grid)
     delivered_packets = []
 
     destination_population = [(i, j) for i in range(NUM_OF_ORB) for j in range(NUM_OF_SPO)]
@@ -145,20 +162,18 @@ def simulate(simulation_time, source_density_map, dest_density_map):
 
     time = 0  # ms 단위 시작 시간
     for _ in tqdm(range(simulation_time)):
-    # while time < simulation_time:
-        # 각 tick(1ms)마다 패킷 생성 (생성 시각 = 현재 time)
+        # 각 tick마다 패킷 생성
         for i in range(NUM_OF_ORB):
             for j in range(NUM_OF_SPO):
                 count = source_density_map[i][j]
                 for _ in range(count):
-                    # 출발지와 동일하지 않은 목적지 선택
                     while True:
                         dest = random.choices(destination_population, weights=destination_weights, k=1)[0]
                         if dest != (i, j):
                             break
                     sfc = random.choice(SFC_LIST)
                     packet = Packet(source=(i, j), destination=dest, sfc=sfc)
-                    packet.creation_time = time  # 현재 ms 기록
+                    packet.creation_time = time
                     grid[i][j].enqueue_packet(packet, time)
         tick_delivered = []
         for row in grid:
@@ -167,11 +182,12 @@ def simulate(simulation_time, source_density_map, dest_density_map):
                 tick_delivered.extend(delivered)
                 delivered_packets.extend(delivered)
 
-        # 사용 예시 (기존 코드에 적용)
-        # if tick_delivered:
-        #     log_packets_to_csv(tick_delivered, time)
-
         if tick_delivered:
+            if CSV:
+                if SIMULATION_MODE == 1:
+                    log_packets_to_csv(tick_delivered, time, file_path=f".\csv\packets_log_mode1_{SIMULATION_TIME}_{start_time.strftime('%m%d_%H%M')}.csv")
+                elif SIMULATION_MODE == 2:
+                    log_packets_to_csv(tick_delivered, time, file_path=f".\csv\packets_log_mode2[{install_time}ms]_{SIMULATION_TIME}_{start_time.strftime('%m%d_%H%M')}.csv")
             if PRINT and PRINT_PACKET:
                 print(f"Tick {time} (Time {time:.3f}ms ~ {time + 1:.3f}ms):")
                 for p in tick_delivered:
@@ -190,6 +206,6 @@ def simulate(simulation_time, source_density_map, dest_density_map):
 
         time += 1
     print(f"총 전달된 패킷 수: {len(delivered_packets)}")
-    return delivered_packets
+    return delivered_packets, grid
 
 

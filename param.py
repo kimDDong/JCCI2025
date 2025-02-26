@@ -5,6 +5,7 @@ PRINT_PATH = 1
 PRINT_DELAY = 1
 PRINT_PACKET = 1
 PRINT = 1
+CSV = 1
 
 
 # Simulation Parameter
