@@ -42,14 +42,22 @@ VNF_LIST = ["FW", "IDS", "NAT", "LB", "VPN", "WAF", "DPI", "Proxy"]
 
 
 # SFC 목록
+# SFC_LIST = [
+#     ["FW", "IDS", "NAT"],           # 보안 중심 SFC (3 VNFs)
+#     ["LB", "NAT", "FW"],            # 부하 분산 중심 SFC (3 VNFs)
+#     ["LB", "VPN", "Proxy", "DPI"],   # 트래픽 관리 SFC (4 VNFs)
+#     ["FW", "IDS", "NAT", "WAF", "VPN"]  # 확장 보안 SFC (5 VNFs)
+# ]
+
 SFC_LIST = [
-    ["FW", "IDS", "NAT"],           # 보안 중심 SFC (3 VNFs)
-    ["LB", "NAT", "FW"],            # 부하 분산 중심 SFC (3 VNFs)
-    ["LB", "VPN", "Proxy", "DPI"],   # 트래픽 관리 SFC (4 VNFs)
-    ["FW", "IDS", "NAT", "WAF", "VPN"]  # 확장 보안 SFC (5 VNFs)
+    ["FW", "IDS"],               # 보안 중심 SFC (3 VNFs)
+    ["LB", "NAT"],                      # 부하 분산 중심 SFC (3 VNFs)
+    ["Proxy", "DPI"],                   # 트래픽 관리 SFC (4 VNFs)
+    ["FW", "IDS", "WAF", "VPN"]  # 확장 보안 SFC (5 VNFs)
 ]
 
-# CPU 요구량 (예: ms 단위)
+
+# CPU 요구량 (예: GFLOPs 단위)
 VNF_CPU_REQUIREMENTS = {
     "FW": 10,
     "IDS": 20,
