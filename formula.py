@@ -181,7 +181,8 @@ def simulate(simulation_time, source_density_map, dest_density_map, start_time, 
                 delivered = sat.process_queue(grid, time)
                 tick_delivered.extend(delivered)
                 delivered_packets.extend(delivered)
-
+        if PRINT and PRINT_QUEUE == 1:
+            print_queue_status(grid, time)
         if tick_delivered:
             if CSV:
                 if SIMULATION_MODE == 1:
