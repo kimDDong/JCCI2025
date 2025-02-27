@@ -12,7 +12,7 @@ CSV = 1
 SIMULATION_TIME = 60  # [ms]
 
 # 시뮬레이션 모드 선택: 1이면 기존(고정 VNF 배치), 2이면 "on‐the‐fly VNF 설치" 알고리즘
-SIMULATION_MODE = 2  # 사용자가 1 또는 2로 설정
+SIMULATION_MODE = 1  # 사용자가 1 또는 2로 설정
 
 # VNF 설치 시간 실험: 각 값(ms)마다 실험 진행
 VNF_INSTALLATION_TIMES = [1, 2, 3, 4, 5]

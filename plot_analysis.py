@@ -63,10 +63,14 @@ def plot_cdfs_for_column(csv_files, column, save_path=None):
         cdf = np.arange(1, len(data) + 1) / len(data)
         legend = extract_legend(csv_file)
         plt.plot(data, cdf, linewidth=2, label=legend)
-
-    plt.title(f"{column} CDF Comparison")
-    plt.xlabel(column)
-    plt.ylabel("CDF")
+    if column == 'Total_Delay(ms)':
+        # plt.title("종단간 지연시간 확률밀도함수 비교")
+        plt.xlabel("종단간 지연시간", fontsize=16)
+        plt.ylabel("확률밀도함수", fontsize=16)
+    else:
+        plt.title(f"{column} CDF Comparison")
+        plt.xlabel(column)
+        plt.ylabel("CDF")
     plt.legend()
     if save_path:
         plt.savefig(save_path)
@@ -75,7 +79,7 @@ def plot_cdfs_for_column(csv_files, column, save_path=None):
 
 def main():
     # CSV 파일 경로: ./csv/ 폴더 내 packets_log_mode로 시작하는 모든 CSV 파일
-    csv_files = glob.glob("./csv/새 폴더 (2)/packets_log_mode*.csv")
+    csv_files = glob.glob("./csv/새 폴더 (3)/packets_log_mode*.csv")
     if not csv_files:
         print("CSV 파일을 찾을 수 없습니다.")
         return
